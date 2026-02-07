@@ -77,8 +77,8 @@ ambertrace.init({
   // Required: Your AmberTrace API key
   apiKey: 'your-api-key',
 
-  // Optional: Base URL for AmberTrace API (default: https://api.ambertrace.io)
-  baseUrl: 'https://api.ambertrace.io',
+  // Optional: Base URL for AmberTrace API (default: https://api.ambertrace.dev)
+  baseUrl: 'https://api.ambertrace.dev',
 
   // Optional: Environment name for filtering traces (e.g., "production", "staging")
   environment: 'production',
@@ -100,7 +100,7 @@ All configuration can be set via environment variables:
 
 ```bash
 export AMBERTRACE_API_KEY="your-api-key"
-export AMBERTRACE_BASE_URL="https://api.ambertrace.io"
+export AMBERTRACE_BASE_URL="https://api.ambertrace.dev"
 export AMBERTRACE_ENVIRONMENT="production"
 export AMBERTRACE_DEBUG="true"
 export AMBERTRACE_TIMEOUT="5000"
@@ -451,4 +451,4 @@ MIT
 
 - **Issues**: [GitHub Issues](https://github.com/KirPros/ambertrace/issues)
 - **Documentation**: [GitHub README](https://github.com/KirPros/ambertrace#readme)
-- **Email**: hello@ambertrace.io
+- **Email**: hello@ambertrace.dev

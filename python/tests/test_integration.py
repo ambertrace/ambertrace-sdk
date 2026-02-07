@@ -79,7 +79,7 @@ def cleanup():
 def test_init_creates_all_components():
     """Test that init() creates config, transport, and registry."""
     # Mock backend
-    respx.post("https://api.ambertrace.io/api/traces/ingest").mock(return_value=httpx.Response(201))
+    respx.post("https://api.ambertrace.dev/api/traces/ingest").mock(return_value=httpx.Response(201))
 
     # Initialize
     ambertrace.init(api_key="test_key_1234567890")
@@ -103,7 +103,7 @@ def test_init_with_disabled_flag():
 @respx.mock
 def test_enable_disable_cycle():
     """Test enabling and disabling tracing."""
-    respx.post("https://api.ambertrace.io/api/traces/ingest").mock(return_value=httpx.Response(201))
+    respx.post("https://api.ambertrace.dev/api/traces/ingest").mock(return_value=httpx.Response(201))
 
     # Initialize
     ambertrace.init(api_key="test_key_1234567890")
@@ -124,7 +124,7 @@ def test_enable_disable_cycle():
 @respx.mock
 def test_flush_sends_pending_traces():
     """Test that flush() waits for traces to be sent."""
-    route = respx.post("https://api.ambertrace.io/api/traces/ingest").mock(
+    route = respx.post("https://api.ambertrace.dev/api/traces/ingest").mock(
         return_value=httpx.Response(201)
     )
 
@@ -162,7 +162,7 @@ def test_flush_sends_pending_traces():
 @respx.mock
 async def test_flush_async_sends_pending_traces():
     """Test that flush_async() waits for async traces."""
-    route = respx.post("https://api.ambertrace.io/api/traces/ingest").mock(
+    route = respx.post("https://api.ambertrace.dev/api/traces/ingest").mock(
         return_value=httpx.Response(201)
     )
 
@@ -275,7 +275,7 @@ async def test_flush_async_without_init_is_safe():
 @respx.mock
 def test_is_enabled_after_init():
     """Test is_enabled() returns correct state."""
-    respx.post("https://api.ambertrace.io/api/traces/ingest").mock(return_value=httpx.Response(201))
+    respx.post("https://api.ambertrace.dev/api/traces/ingest").mock(return_value=httpx.Response(201))
 
     # Initially not enabled
     assert ambertrace.is_enabled() is False
@@ -292,7 +292,7 @@ def test_is_enabled_after_init():
 @respx.mock
 def test_multiple_init_calls():
     """Test that calling init() multiple times is safe."""
-    respx.post("https://api.ambertrace.io/api/traces/ingest").mock(return_value=httpx.Response(201))
+    respx.post("https://api.ambertrace.dev/api/traces/ingest").mock(return_value=httpx.Response(201))
 
     ambertrace.init(api_key="test_key_1")
     first_enabled = ambertrace.is_enabled()
@@ -312,7 +312,7 @@ def test_multiple_init_calls():
 def test_backend_errors_dont_break_user_code():
     """Test that backend errors are handled silently."""
     # Mock backend returning errors
-    respx.post("https://api.ambertrace.io/api/traces/ingest").mock(return_value=httpx.Response(500))
+    respx.post("https://api.ambertrace.dev/api/traces/ingest").mock(return_value=httpx.Response(500))
 
     ambertrace.init(api_key="test_key")
 
@@ -349,7 +349,7 @@ def test_network_timeout_handled_gracefully():
     def timeout_handler(request):
         raise httpx.TimeoutException("Timeout")
 
-    respx.post("https://api.ambertrace.io/api/traces/ingest").mock(side_effect=timeout_handler)
+    respx.post("https://api.ambertrace.dev/api/traces/ingest").mock(side_effect=timeout_handler)
 
     ambertrace.init(api_key="test_key", timeout=1.0)
 

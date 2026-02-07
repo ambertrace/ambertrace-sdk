@@ -62,7 +62,7 @@ def init(
 
     Args:
         api_key: AmberTrace API key (or set AMBERTRACE_API_KEY env var)
-        base_url: Backend API URL (default: https://api.ambertrace.io)
+        base_url: Backend API URL (default: https://api.ambertrace.dev)
         environment: Environment tag for traces (e.g., "production", "staging")
         debug: Enable debug logging (default: False)
         timeout: Network timeout in seconds (default: 5.0)

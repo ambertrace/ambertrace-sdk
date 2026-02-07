@@ -62,7 +62,7 @@ describe('Transport', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.ambertrace.io/api/traces/ingest',
+        'https://api.ambertrace.dev/api/traces/ingest',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({

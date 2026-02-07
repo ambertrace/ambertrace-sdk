@@ -20,7 +20,7 @@ export interface ConfigOptions {
 
   /**
    * Base URL for AmberTrace backend API.
-   * Default: https://api.ambertrace.io
+   * Default: https://api.ambertrace.dev
    */
   baseUrl?: string;
 
@@ -72,7 +72,7 @@ export class Config {
 
     // Load base URL with default
     this.baseUrl =
-      options.baseUrl ?? process.env.AMBERTRACE_BASE_URL ?? 'https://api.ambertrace.io';
+      options.baseUrl ?? process.env.AMBERTRACE_BASE_URL ?? 'https://api.ambertrace.dev';
 
     // Load environment (optional)
     this.environment = options.environment ?? process.env.AMBERTRACE_ENVIRONMENT;

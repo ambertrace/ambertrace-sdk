@@ -49,7 +49,7 @@ describe('Config', () => {
 
     it('should use default base URL', () => {
       const config = new Config({ apiKey: 'test-key' });
-      expect(config.baseUrl).toBe('https://api.ambertrace.io');
+      expect(config.baseUrl).toBe('https://api.ambertrace.dev');
     });
 
     it('should accept custom base URL from options', () => {

@@ -27,7 +27,7 @@ class Config:
 
         Args:
             api_key: AmberTrace API key (or set AMBERTRACE_API_KEY env var)
-            base_url: Backend API URL (default: https://api.ambertrace.io)
+            base_url: Backend API URL (default: https://api.ambertrace.dev)
             environment: Environment tag (e.g., "production", "staging")
             debug: Enable debug logging (default: False)
             timeout: Network timeout in seconds (default: 5.0)
@@ -48,7 +48,7 @@ class Config:
         self.base_url = (
             base_url
             or os.getenv("AMBERTRACE_BASE_URL")
-            or "https://api.ambertrace.io"
+            or "https://api.ambertrace.dev"
         )
         # Ensure base_url doesn't have trailing slash
         self.base_url = self.base_url.rstrip("/")

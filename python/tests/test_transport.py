@@ -19,7 +19,7 @@ class TestTransport:
         """Setup test configuration."""
         config = Config(
             api_key="test_api_key_1234567890",
-            base_url="https://test.ambertrace.io",
+            base_url="https://test.ambertrace.dev",
             timeout=2.0,
         )
         set_config(config)
@@ -104,7 +104,7 @@ class TestTransport:
     def test_send_trace_success(self, config, transport, sample_trace):
         """Test successfully sending a trace."""
         # Mock the HTTP endpoint
-        route = respx.post("https://test.ambertrace.io/api/traces/ingest").mock(
+        route = respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(
             return_value=httpx.Response(201)
         )
 
@@ -120,7 +120,7 @@ class TestTransport:
     @respx.mock
     def test_send_trace_includes_auth_header(self, config, transport, sample_trace):
         """Test that Authorization header is included."""
-        route = respx.post("https://test.ambertrace.io/api/traces/ingest").mock(
+        route = respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(
             return_value=httpx.Response(201)
         )
 
@@ -137,7 +137,7 @@ class TestTransport:
     @respx.mock
     def test_send_trace_handles_401(self, config, transport, sample_trace):
         """Test handling of 401 Unauthorized."""
-        respx.post("https://test.ambertrace.io/api/traces/ingest").mock(
+        respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(
             return_value=httpx.Response(401, json={"error": "Invalid API key"})
         )
 
@@ -152,7 +152,7 @@ class TestTransport:
     @respx.mock
     def test_send_trace_handles_500(self, config, transport, sample_trace):
         """Test handling of 500 server error."""
-        respx.post("https://test.ambertrace.io/api/traces/ingest").mock(
+        respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(
             return_value=httpx.Response(500, json={"error": "Internal server error"})
         )
 
@@ -169,7 +169,7 @@ class TestTransport:
         def timeout_callback(request):
             raise httpx.TimeoutException("Request timed out")
 
-        respx.post("https://test.ambertrace.io/api/traces/ingest").mock(side_effect=timeout_callback)
+        respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(side_effect=timeout_callback)
 
         transport.start()
 
@@ -207,7 +207,7 @@ class TestTransport:
     def test_flush_waits_for_completion(self, config, transport, sample_trace):
         """Test flush waits for traces to be sent."""
         with respx.mock:
-            respx.post("https://test.ambertrace.io/api/traces/ingest").mock(
+            respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(
                 return_value=httpx.Response(201)
             )
 
@@ -224,7 +224,7 @@ class TestTransport:
     @respx.mock
     async def test_send_trace_async_success(self, config, transport, sample_trace):
         """Test async trace sending."""
-        route = respx.post("https://test.ambertrace.io/api/traces/ingest").mock(
+        route = respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(
             return_value=httpx.Response(201)
         )
 
@@ -241,7 +241,7 @@ class TestTransport:
     @respx.mock
     async def test_send_trace_async_handles_errors(self, config, transport, sample_trace):
         """Test async trace sending handles errors gracefully."""
-        respx.post("https://test.ambertrace.io/api/traces/ingest").mock(
+        respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(
             return_value=httpx.Response(500)
         )
 
@@ -264,7 +264,7 @@ class TestTransport:
     @respx.mock
     async def test_flush_async_waits_for_tasks(self, config, sample_trace):
         """Test async flush waits for all tasks."""
-        route = respx.post("https://test.ambertrace.io/api/traces/ingest").mock(
+        route = respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(
             return_value=httpx.Response(201)
         )
 
@@ -296,7 +296,7 @@ class TestTransport:
             return httpx.Response(201)
 
         with respx.mock:
-            respx.post("https://test.ambertrace.io/api/traces/ingest").mock(side_effect=slow_response)
+            respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(side_effect=slow_response)
 
             transport.start()
             transport.send_trace_async(sample_trace)
@@ -318,7 +318,7 @@ class TestTransport:
     @respx.mock
     def test_send_trace_includes_user_agent(self, config, transport, sample_trace):
         """Test that User-Agent header is included."""
-        route = respx.post("https://test.ambertrace.io/api/traces/ingest").mock(
+        route = respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(
             return_value=httpx.Response(201)
         )
 
@@ -335,7 +335,7 @@ class TestTransport:
     @respx.mock
     def test_send_trace_posts_correct_json(self, config, transport, sample_trace):
         """Test that trace is sent as JSON body."""
-        route = respx.post("https://test.ambertrace.io/api/traces/ingest").mock(
+        route = respx.post("https://test.ambertrace.dev/api/traces/ingest").mock(
             return_value=httpx.Response(201)
         )
 

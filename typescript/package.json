@@ -29,6 +29,7 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "test:backend": "tsx scripts/test-real-backend.ts",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "keywords": [
@@ -92,6 +93,7 @@
     "openai": "^4.0.0",
     "prettier": "^3.0.0",
     "ts-jest": "^29.1.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.2.0"
   },
   "engines": {
