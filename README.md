@@ -7,7 +7,7 @@ Lightweight, zero-code LLM observability tool. Trace every API call to OpenAI, A
 | Provider | Models | Python SDK | Node.js SDK |
 |----------|--------|------------|-------------|
 | **OpenAI** | GPT-5, GPT-4, GPT-4o, GPT-4o-mini, o1, o3 | `openai` | `openai` |
-| **Anthropic** | Claude Opus 4.5, Sonnet 4.5, Haiku | `anthropic` | `@anthropic-ai/sdk` |
+| **Anthropic** | Claude Opus 4.5/4.6, Sonnet 4.5, Haiku | `anthropic` | `@anthropic-ai/sdk` |
 | **Google** | Gemini Pro, Flash, 2.0, Gemma | `google-generativeai`, `google-genai` | `@google/generative-ai` |
 
 ## Quick Start
