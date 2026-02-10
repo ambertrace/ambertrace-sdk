@@ -90,7 +90,7 @@ ambertrace.init(
 ## Links
 
 - [Documentation](https://docs.ambertrace.dev)
-- [Portal](https://ambertrace.dev/portal)
+- [Portal](https://ambertrace.dev/dashboard)
 - [GitHub](https://github.com/ambertrace/ambertrace-sdk)
 
 ## License
