@@ -79,7 +79,7 @@ Both Python and TypeScript SDKs follow the same architecture:
 4. Register the provider in the registry
 5. Add tests for both collector and interceptor
 
-See existing providers (OpenAI, Anthropic, Gemini) as reference implementations.
+See existing providers (OpenAI, Anthropic, Google) as reference implementations.
 
 ## License
 
