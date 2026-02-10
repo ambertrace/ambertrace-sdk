@@ -1,4 +1,4 @@
-"""AmberTrace Python SDK - LLM observability for OpenAI, Anthropic, and Google Gemini.
+"""AmberTrace Python SDK - LLM observability for OpenAI, Anthropic, and Google.
 
 This SDK provides automatic tracing of LLM API calls with minimal configuration.
 
@@ -58,7 +58,7 @@ def init(
     Supported providers (auto-detected):
     - OpenAI (if openai package is installed)
     - Anthropic (if anthropic package is installed)
-    - Google Gemini (if google-generativeai or google-genai package is installed)
+    - Google (if google-generativeai or google-genai package is installed)
 
     Args:
         api_key: AmberTrace API key (or set AMBERTRACE_API_KEY env var)
@@ -122,7 +122,7 @@ def init(
         except ImportError:
             logger.info("Anthropic SDK not found, skipping Anthropic tracing")
 
-        # Auto-detect and register Google Gemini if available
+        # Auto-detect and register Google if available
         # Supports both google-generativeai (original) and google-genai (newer) SDKs
         try:
             _gemini_available = False
@@ -149,7 +149,7 @@ def init(
             else:
                 raise ImportError("No Gemini SDK found")
         except ImportError:
-            logger.info("Google Gemini SDK not found, skipping Gemini tracing")
+            logger.info("Google SDK not found, skipping Google tracing")
 
         # Check if any providers were registered
         registered_providers = registry.get_registered_providers()
