@@ -34,7 +34,7 @@ export class GeminiInterceptor implements BaseInterceptor {
   private genai2Prototype: Record<string, unknown> | null = null;
 
   getProviderName(): string {
-    return 'gemini';
+    return 'google';
   }
 
   patch(): void {

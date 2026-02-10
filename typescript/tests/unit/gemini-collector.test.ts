@@ -21,8 +21,8 @@ describe('GeminiCollector', () => {
   });
 
   describe('getProviderName', () => {
-    it('should return "gemini"', () => {
-      expect(collector.getProviderName()).toBe('gemini');
+    it('should return "google"', () => {
+      expect(collector.getProviderName()).toBe('google');
     });
   });
 
@@ -55,7 +55,7 @@ describe('GeminiCollector', () => {
 
       expect(trace).not.toBeNull();
       expect(trace?.trace_id).toBe('trace-123');
-      expect(trace?.provider).toBe('gemini');
+      expect(trace?.provider).toBe('google');
       expect(trace?.method).toBe('generate_content');
       expect(trace?.duration_ms).toBeGreaterThanOrEqual(500);
       expect(trace?.environment).toBe('test');

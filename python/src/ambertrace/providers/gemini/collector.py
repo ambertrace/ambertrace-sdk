@@ -52,7 +52,7 @@ class GeminiCollector(BaseCollector):
 
     def get_provider_name(self) -> str:
         """Return provider name."""
-        return "gemini"
+        return "google"
 
     def collect_trace(
         self,
@@ -100,7 +100,7 @@ class GeminiCollector(BaseCollector):
             trace_dict = self.build_trace(
                 trace_id=trace_id,
                 timestamp=timestamp,
-                provider="gemini",
+                provider="google",
                 method="generate_content",
                 duration_ms=duration_ms,
                 request_data=request_data,

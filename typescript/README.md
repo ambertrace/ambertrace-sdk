@@ -359,7 +359,7 @@ All traces follow a unified format regardless of provider:
 interface Trace {
   trace_id: string; // Unique UUID
   timestamp: string; // ISO 8601 UTC
-  provider: 'openai' | 'anthropic' | 'gemini'; // Provider identifier
+  provider: 'openai' | 'anthropic' | 'google'; // Provider identifier
   method: string; // API method name
   duration_ms: number; // Call duration
   request: {

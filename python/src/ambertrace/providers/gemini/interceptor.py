@@ -41,7 +41,7 @@ class GeminiInterceptor(BaseInterceptor):
 
     def get_provider_name(self) -> str:
         """Return provider name."""
-        return "gemini"
+        return "google"
 
     def patch(self) -> None:
         """Apply monkey-patches to Gemini SDK methods.
