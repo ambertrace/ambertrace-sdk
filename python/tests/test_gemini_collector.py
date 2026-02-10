@@ -68,7 +68,7 @@ class TestGeminiCollector:
 
     def test_get_provider_name(self, collector):
         """Test that provider name is correct."""
-        assert collector.get_provider_name() == "gemini"
+        assert collector.get_provider_name() == "google"
 
     def test_collect_trace_success(self, collector, config, request_kwargs, mock_response):
         """Test collecting a successful trace."""
@@ -85,7 +85,7 @@ class TestGeminiCollector:
 
         assert trace_dict is not None
         assert trace_dict["trace_id"] == trace_id
-        assert trace_dict["provider"] == "gemini"
+        assert trace_dict["provider"] == "google"
         assert trace_dict["method"] == "generate_content"
         assert "timestamp" in trace_dict
         assert trace_dict["duration_ms"] >= 0

@@ -151,7 +151,7 @@ class BaseCollector(ABC):
         Args:
             trace_id: Unique trace identifier (UUID)
             timestamp: ISO 8601 timestamp string
-            provider: Provider name (e.g., 'openai', 'anthropic', 'gemini')
+            provider: Provider name (e.g., 'openai', 'anthropic', 'google')
             method: API method name (e.g., 'chat.completions.create')
             duration_ms: Call duration in milliseconds
             request_data: Normalized request dict with keys:

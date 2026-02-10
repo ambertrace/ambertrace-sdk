@@ -60,7 +60,7 @@ const FINISH_REASON_INT_MAP: Record<number, string> = {
  */
 export class GeminiCollector implements BaseCollector {
   getProviderName(): string {
-    return 'gemini';
+    return 'google';
   }
 
   collectTrace(
@@ -99,7 +99,7 @@ export class GeminiCollector implements BaseCollector {
       const trace: Trace = {
         trace_id: traceId,
         timestamp,
-        provider: 'gemini',
+        provider: 'google',
         method: 'generate_content',
         duration_ms: durationMs,
         request: requestData,

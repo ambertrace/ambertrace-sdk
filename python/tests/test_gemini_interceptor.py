@@ -62,7 +62,7 @@ class TestGeminiInterceptor:
 
     def test_get_provider_name(self, interceptor):
         """Test provider name is correct."""
-        assert interceptor.get_provider_name() == "gemini"
+        assert interceptor.get_provider_name() == "google"
 
     def test_patch_original_sdk(self, interceptor):
         """Test patching original google-generativeai SDK."""

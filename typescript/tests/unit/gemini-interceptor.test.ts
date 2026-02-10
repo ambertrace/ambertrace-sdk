@@ -33,8 +33,8 @@ describe('GeminiInterceptor', () => {
   });
 
   describe('getProviderName', () => {
-    it('should return "gemini"', () => {
-      expect(interceptor.getProviderName()).toBe('gemini');
+    it('should return "google"', () => {
+      expect(interceptor.getProviderName()).toBe('google');
     });
   });
 
