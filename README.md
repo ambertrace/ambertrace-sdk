@@ -1,6 +1,6 @@
 # AmberTrace SDK
 
-Lightweight, zero-code LLM observability. Trace every API call to OpenAI, Anthropic, and Google Gemini — capturing requests, responses, token usage, latency, and errors — with two lines of code.
+Lightweight, zero-code LLM observability tool. Trace every API call to OpenAI, Anthropic, and Google — capturing requests, responses, token usage, latency, and errors — with two lines of code.
 
 ## Supported Providers
 
@@ -8,7 +8,7 @@ Lightweight, zero-code LLM observability. Trace every API call to OpenAI, Anthro
 |----------|--------|------------|-------------|
 | **OpenAI** | GPT-5, GPT-4, GPT-4o, GPT-4o-mini, o1, o3 | `openai` | `openai` |
 | **Anthropic** | Claude Opus 4.5, Sonnet 4.5, Haiku | `anthropic` | `@anthropic-ai/sdk` |
-| **Google Gemini** | Gemini Pro, Flash, 2.0 | `google-generativeai`, `google-genai` | `@google/generative-ai` |
+| **Google** | Gemini Pro, Flash, 2.0, Gemma | `google-generativeai`, `google-genai` | `@google/generative-ai` |
 
 ## Quick Start
 
@@ -59,12 +59,12 @@ await ambertrace.flush();
 1. **Install the SDK** — `pip install ambertrace` or `npm install @ambertrace/node`
 2. **Call `init()` at startup** — the SDK patches your LLM clients transparently
 3. **Use your LLM SDKs normally** — every call is traced automatically
-4. **View traces in the portal** — see requests, responses, tokens, latency, and errors
+4. **View traces in the portal** — see requests, responses, tokens, latency, and errors at https://www.ambertrace.dev/dashboard 
 
 ## Features
 
 - **Zero-code integration** — no decorators, wrappers, or middleware
-- **Multi-provider** — OpenAI, Anthropic, and Gemini from a single SDK
+- **Multi-provider** — OpenAI, Anthropic, and Google from a single SDK
 - **Async support** — works with both sync and async clients
 - **Non-blocking** — traces are sent in background threads
 - **Never breaks your code** — all tracing errors are caught internally
@@ -78,7 +78,7 @@ await ambertrace.flush();
 
 - [Website](https://ambertrace.dev)
 - [Documentation](https://docs.ambertrace.dev)
-- [Portal](https://app.ambertrace.dev)
+- [Portal](https://ambertrace.dev/dashboard)
 - Contact: hello@ambertrace.dev
 
 ## License
