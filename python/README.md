@@ -1,6 +1,6 @@
 # AmberTrace Python SDK
 
-Lightweight, zero-code LLM observability for Python. Trace every API call to OpenAI, Anthropic, and Google Gemini automatically.
+Lightweight, zero-code LLM observability for Python. Trace every API call to OpenAI, Anthropic, and Google automatically.
 
 ## Installation
 
@@ -44,8 +44,8 @@ ambertrace.flush()
 | Provider | Models | SDK |
 |----------|--------|-----|
 | **OpenAI** | GPT-5, GPT-4, GPT-4o, GPT-4o-mini, o1, o3 | `openai>=1.0.0` |
-| **Anthropic** | Claude Opus 4.5, Sonnet 4.5, Haiku | `anthropic>=0.18.0` |
-| **Google Gemini** | Gemini Pro, Flash, 2.0 | `google-generativeai>=0.3.0` |
+| **Anthropic** | Claude Opus 4.5/4.6, Sonnet 4.5, Haiku | `anthropic>=0.18.0` |
+| **Google** | Gemini Pro, Flash, 2.0, Gemma | `google-generativeai>=0.3.0` |
 
 ## Async Support
 
@@ -90,7 +90,7 @@ ambertrace.init(
 ## Links
 
 - [Documentation](https://docs.ambertrace.dev)
-- [Portal](https://app.ambertrace.dev)
+- [Portal](https://ambertrace.dev/portal)
 - [GitHub](https://github.com/ambertrace/ambertrace-sdk)
 
 ## License
