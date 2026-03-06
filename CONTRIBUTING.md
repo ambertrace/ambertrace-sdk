@@ -21,6 +21,13 @@ npm install
 npm run build
 ```
 
+### Java SDK
+
+```bash
+cd java
+mvn compile
+```
+
 ## Running Tests
 
 ### Python
@@ -35,6 +42,13 @@ pytest
 ```bash
 cd typescript
 npm test
+```
+
+### Java
+
+```bash
+cd java
+mvn test
 ```
 
 ## Code Style
@@ -71,7 +85,7 @@ npm run format
 
 ## Adding a New Provider
 
-Both Python and TypeScript SDKs follow the same architecture:
+All SDKs (Python, TypeScript, Java) follow the same architecture:
 
 1. Create a new provider directory under `providers/`
 2. Implement a **Collector** (extracts data from provider responses)

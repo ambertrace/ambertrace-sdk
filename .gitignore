@@ -18,6 +18,14 @@ node_modules/
 coverage/
 *.tsbuildinfo
 
+# Java
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.iml
+
 # IDE
 .vscode/
 .idea/
