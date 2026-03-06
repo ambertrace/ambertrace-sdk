@@ -68,14 +68,20 @@ public final class Trace {
         Integer promptTokens = null;
         Integer completionTokens = null;
         Integer totalTokens = null;
+        Integer cachedTokens = null;
+        Integer reasoningTokens = null;
         if (response != null && response.getUsage() != null) {
             promptTokens = response.getUsage().getPromptTokens();
             completionTokens = response.getUsage().getCompletionTokens();
             totalTokens = response.getUsage().getTotalTokens();
+            cachedTokens = response.getUsage().getCachedTokens();
+            reasoningTokens = response.getUsage().getReasoningTokens();
         }
         map.put("prompt_tokens", promptTokens);
         map.put("completion_tokens", completionTokens);
         map.put("total_tokens", totalTokens);
+        map.put("cached_tokens", cachedTokens);
+        map.put("reasoning_tokens", reasoningTokens);
 
         map.put("status", error != null ? "error" : "success");
         map.put("environment", environment);

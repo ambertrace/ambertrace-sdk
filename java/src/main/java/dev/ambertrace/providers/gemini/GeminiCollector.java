@@ -1,5 +1,7 @@
 package dev.ambertrace.providers.gemini;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.ambertrace.providers.BaseCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,12 +12,13 @@ import java.util.*;
 /**
  * Collector for Google Gemini API traces.
  *
- * <p>Extracts data from Gemini SDK's request/response objects
- * into the normalized trace format.
+ * <p>Extracts data from Gemini API request/response data into the normalized trace format.
+ * Works with raw JSON request data from the {@link TracingApiClient} HTTP-level interception.
  */
 public class GeminiCollector extends BaseCollector {
 
     private static final Logger logger = LoggerFactory.getLogger(GeminiCollector.class);
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public String getProviderName() {
@@ -35,7 +38,7 @@ public class GeminiCollector extends BaseCollector {
             String timestamp = Instant.now().toString();
 
             Map<String, Object> requestData = buildRequestData(requestParams);
-            Map<String, Object> responseData = response != null ? buildResponseData(response) : null;
+            Map<String, Object> responseData = null; // Response data captured at HTTP level is raw; skip for now
             Map<String, Object> errorData = error != null ? buildErrorData(error) : null;
 
             return buildTrace(
@@ -49,10 +52,13 @@ public class GeminiCollector extends BaseCollector {
     }
 
     /**
-     * Build request data from Gemini call parameters.
+     * Build request data from the request context map.
      *
-     * <p>requestParams is expected to be a {@code GeminiRequestContext} map
-     * containing "model", "content", and optionally "config".
+     * <p>The context map from {@link TracingApiClient} contains:
+     * <ul>
+     *   <li>"model" — model name extracted from the API path</li>
+     *   <li>"requestJson" — raw request JSON body</li>
+     * </ul>
      */
     @SuppressWarnings("unchecked")
     private Map<String, Object> buildRequestData(Object requestParams) {
@@ -61,27 +67,26 @@ public class GeminiCollector extends BaseCollector {
             Map<String, Object> ctx = (Map<String, Object>) requestParams;
             data.put("model", ctx.getOrDefault("model", "unknown"));
 
-            // Convert content to messages format
+            // Try to parse messages from raw request JSON
             List<Map<String, Object>> messages = new ArrayList<>();
-            Object content = ctx.get("content");
-            if (content instanceof String) {
-                Map<String, Object> msg = new LinkedHashMap<>();
-                msg.put("role", "user");
-                msg.put("content", content);
-                messages.add(msg);
+            Object requestJson = ctx.get("requestJson");
+            if (requestJson instanceof String) {
+                messages = parseMessagesFromJson((String) requestJson);
             }
-            data.put("messages", messages);
 
-            // Extract config as parameters
-            Map<String, Object> params = new LinkedHashMap<>();
-            Object config = ctx.get("config");
-            if (config != null) {
-                extractOptional(config, "temperature", params);
-                extractOptional(config, "topP", params);
-                extractOptional(config, "topK", params);
-                extractOptional(config, "maxOutputTokens", params);
+            // Fallback: try legacy "content" key (for backward compatibility)
+            if (messages.isEmpty()) {
+                Object content = ctx.get("content");
+                if (content instanceof String) {
+                    Map<String, Object> msg = new LinkedHashMap<>();
+                    msg.put("role", "user");
+                    msg.put("content", content);
+                    messages.add(msg);
+                }
             }
-            data.put("parameters", params);
+
+            data.put("messages", messages);
+            data.put("parameters", Collections.emptyMap());
         } else {
             data.put("model", "unknown");
             data.put("messages", Collections.emptyList());
@@ -90,65 +95,40 @@ public class GeminiCollector extends BaseCollector {
         return data;
     }
 
-    private Map<String, Object> buildResponseData(Object response) {
-        Map<String, Object> data = new LinkedHashMap<>();
-
+    /**
+     * Parse messages from the raw Gemini request JSON.
+     * The Gemini API format has a "contents" array with "parts" containing "text".
+     */
+    private List<Map<String, Object>> parseMessagesFromJson(String json) {
+        List<Map<String, Object>> messages = new ArrayList<>();
         try {
-            data.put("id", "gemini-" + UUID.randomUUID().toString().substring(0, 8));
-
-            // Try to get model from response or fallback
-            data.put("model", "unknown");
-
-            // Extract text via response.text()
-            List<Map<String, Object>> choices = new ArrayList<>();
-            Object text = invoke(response, "text");
-            String responseText = "";
-            if (text instanceof String) {
-                responseText = (String) text;
-            }
-
-            Map<String, Object> choiceMsg = new LinkedHashMap<>();
-            choiceMsg.put("role", "assistant");
-            choiceMsg.put("content", responseText);
-
-            Map<String, Object> choice = new LinkedHashMap<>();
-            choice.put("index", 0);
-            choice.put("message", choiceMsg);
-            choice.put("finish_reason", "stop");
-            choices.add(choice);
-            data.put("choices", choices);
-
-            // Extract usage via usageMetadata()
-            Map<String, Object> usage = new LinkedHashMap<>();
-            Object usageMetadata = invoke(response, "usageMetadata");
-            if (usageMetadata instanceof Optional) {
-                Optional<?> optMeta = (Optional<?>) usageMetadata;
-                if (optMeta.isPresent()) {
-                    Object meta = optMeta.get();
-                    int promptTokens = safeOptionalInt(meta, "promptTokenCount");
-                    int completionTokens = safeOptionalInt(meta, "candidatesTokenCount");
-                    int totalTokens = safeOptionalInt(meta, "totalTokenCount");
-                    usage.put("prompt_tokens", promptTokens);
-                    usage.put("completion_tokens", completionTokens);
-                    usage.put("total_tokens", totalTokens);
+            JsonNode root = mapper.readTree(json);
+            JsonNode contents = root.get("contents");
+            if (contents != null && contents.isArray()) {
+                for (JsonNode content : contents) {
+                    String role = content.has("role") ? content.get("role").asText() : "user";
+                    JsonNode parts = content.get("parts");
+                    if (parts != null && parts.isArray()) {
+                        StringBuilder text = new StringBuilder();
+                        for (JsonNode part : parts) {
+                            if (part.has("text")) {
+                                if (text.length() > 0) text.append("\n");
+                                text.append(part.get("text").asText());
+                            }
+                        }
+                        if (text.length() > 0) {
+                            Map<String, Object> msg = new LinkedHashMap<>();
+                            msg.put("role", role);
+                            msg.put("content", text.toString());
+                            messages.add(msg);
+                        }
+                    }
                 }
             }
-            if (usage.isEmpty()) {
-                usage.put("prompt_tokens", 0);
-                usage.put("completion_tokens", 0);
-                usage.put("total_tokens", 0);
-            }
-            data.put("usage", usage);
-
         } catch (Exception e) {
-            logger.debug("Error extracting Gemini response data: {}", e.getMessage());
-            data.putIfAbsent("id", "unknown");
-            data.putIfAbsent("model", "unknown");
-            data.putIfAbsent("choices", Collections.emptyList());
-            data.putIfAbsent("usage", Map.of("prompt_tokens", 0, "completion_tokens", 0, "total_tokens", 0));
+            logger.debug("Could not parse Gemini request JSON: {}", e.getMessage());
         }
-
-        return data;
+        return messages;
     }
 
     private Map<String, Object> buildErrorData(Exception error) {
@@ -156,45 +136,5 @@ public class GeminiCollector extends BaseCollector {
         data.put("type", error.getClass().getSimpleName());
         data.put("message", error.getMessage() != null ? error.getMessage() : "");
         return data;
-    }
-
-    /**
-     * Get an Optional int field (returns 0 if absent or error).
-     */
-    @SuppressWarnings("unchecked")
-    private int safeOptionalInt(Object obj, String methodName) {
-        try {
-            Object result = obj.getClass().getMethod(methodName).invoke(obj);
-            if (result instanceof Optional) {
-                return ((Optional<Integer>) result).orElse(0);
-            }
-            if (result instanceof Number) {
-                return ((Number) result).intValue();
-            }
-        } catch (Exception ignored) {}
-        return 0;
-    }
-
-    private void extractOptional(Object obj, String methodName, Map<String, Object> target) {
-        try {
-            Object value = invoke(obj, methodName);
-            if (value instanceof Optional) {
-                ((Optional<?>) value).ifPresent(v -> target.put(toSnakeCase(methodName), v));
-            } else if (value != null) {
-                target.put(toSnakeCase(methodName), value);
-            }
-        } catch (Exception ignored) {}
-    }
-
-    private static Object invoke(Object obj, String methodName) {
-        try {
-            return obj.getClass().getMethod(methodName).invoke(obj);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static String toSnakeCase(String camelCase) {
-        return camelCase.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
     }
 }

@@ -1,5 +1,6 @@
 package dev.ambertrace.providers.gemini;
 
+import com.google.genai.AmberTraceApiClientWrapper;
 import dev.ambertrace.Config;
 import dev.ambertrace.providers.BaseCollector;
 import dev.ambertrace.providers.BaseInterceptor;
@@ -9,27 +10,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Interceptor for the Google Gemini Java SDK.
  *
- * <p>The Gemini SDK uses {@code client.models.generateContent(model, content, config)}
- * where {@code client.models} is a public field (not a method). This interceptor
- * wraps the Models object and intercepts {@code generateContent} calls.
- *
- * <p>Since {@code Client} is a concrete class (not an interface), we return a
- * subclass-based wrapper that delegates all calls to the original while intercepting
- * the models field access.
+ * <p>The Gemini SDK's {@code Client} and {@code Models} classes are both {@code final},
+ * so they cannot be subclassed or proxied. This interceptor replaces the internal
+ * {@code ApiClient} with a tracing wrapper via {@link AmberTraceApiClientWrapper},
+ * which lives in the {@code com.google.genai} package to access package-private types.
  */
 public class GeminiInterceptor implements BaseInterceptor<Object> {
 
     private static final Logger logger = LoggerFactory.getLogger(GeminiInterceptor.class);
+
+    // Track wrapped clients using WeakHashMap to allow GC of unused clients
+    private static final Map<Object, Boolean> wrappedClients =
+        Collections.synchronizedMap(new WeakHashMap<>());
 
     @Override
     public String getProviderName() {
@@ -43,26 +40,41 @@ public class GeminiInterceptor implements BaseInterceptor<Object> {
         }
 
         try {
-            // Gemini Client has a public field `models` of type Models
-            // We wrap the Models object to intercept generateContent
+            // 1. Get client.models (public field, type: com.google.genai.Models)
             Field modelsField = client.getClass().getField("models");
             Object originalModels = modelsField.get(client);
 
             if (originalModels == null) {
-                logger.warn("Gemini client has no models field");
+                logger.warn("Gemini client has null models field");
                 return client;
             }
 
-            // Create a wrapper for the Models object
-            Object wrappedModels = wrapModels(originalModels);
+            // 2. Extract ApiClient from Models (uses package-private access)
+            Object originalApiClient = AmberTraceApiClientWrapper.extractApiClient(
+                (com.google.genai.Models) originalModels);
 
-            // Replace the models field on the client
-            modelsField.set(client, wrappedModels);
+            if (originalApiClient == null) {
+                logger.warn("Gemini Models has null apiClient");
+                return client;
+            }
 
-            // Mark client as wrapped by setting a flag via a concurrent map
-            wrappedClients.put(System.identityHashCode(client), true);
+            // 3. Create tracing ApiClient wrapper (casts happen inside the wrapper's package)
+            Object tracingClient = AmberTraceApiClientWrapper.wrapApiClient(
+                originalApiClient,
+                (traceData, error) -> sendTrace(traceData, error)
+            );
 
+            // 4. Create new Models with the tracing ApiClient
+            com.google.genai.Models newModels = AmberTraceApiClientWrapper.createModels(tracingClient);
+
+            // 5. Replace client.models via reflection
+            modelsField.setAccessible(true);
+            modelsField.set(client, newModels);
+
+            wrappedClients.put(client, true);
+            logger.debug("Wrapped Gemini client successfully");
             return client;
+
         } catch (Exception e) {
             logger.error("Failed to wrap Gemini client: {}", e.getMessage(), e);
             return client;
@@ -71,104 +83,44 @@ public class GeminiInterceptor implements BaseInterceptor<Object> {
 
     @Override
     public boolean isWrapped(Object client) {
-        return wrappedClients.containsKey(System.identityHashCode(client));
+        return wrappedClients.containsKey(client);
     }
 
-    // Track wrapped clients (weak reference would be ideal, but simple map suffices for now)
-    private static final Map<Integer, Boolean> wrappedClients = new java.util.concurrent.ConcurrentHashMap<>();
+    private static void sendTrace(Map<String, Object> traceData, Exception error) {
+        Config config = Config.get();
+        if (config == null || !config.isEnabled()) return;
 
-    /**
-     * Wrap a Gemini Models object. Since Models is a concrete class,
-     * we use a subclass approach (or dynamic proxy if it implements interfaces).
-     * Fallback: use field injection to wrap the internal HTTP client.
-     *
-     * <p>For simplicity, we wrap it as a Models subclass that delegates all calls
-     * but intercepts generateContent.
-     */
-    private Object wrapModels(Object models) {
-        // The Models class is concrete. We'll create a TracedModels subclass
-        // by using reflection to intercept the generateContent call.
-        // Since we can't easily subclass at runtime without bytecode generation,
-        // we wrap via a proxy-like pattern using a composition wrapper.
+        try {
+            ProviderRegistry registry = ProviderRegistry.get();
+            if (registry == null) return;
 
-        return new TracedModels(models);
-    }
-
-    /**
-     * Wrapper around Gemini's Models class that intercepts generateContent calls.
-     *
-     * <p>This class extends the SDK's Models class and overrides generateContent
-     * to add tracing. Since Models may not be easily subclassed, we use delegation
-     * via a field and expose it as the same type through reflection.
-     */
-    static class TracedModels {
-        private final Object delegate;
-
-        TracedModels(Object delegate) {
-            this.delegate = delegate;
-        }
-
-        /**
-         * Called via reflection from the intercepted client.
-         * The GeminiInterceptor replaces client.models with this object.
-         *
-         * Note: Since Gemini's client.models is typed as Models (concrete class),
-         * this wrapper approach requires the client.models field to accept Object type
-         * or we need a different strategy. In practice, we intercept at a higher level.
-         */
-        public Object generateContent(String model, Object content, Object config) throws Exception {
-            Config amberConfig = Config.get();
-            if (amberConfig == null || !amberConfig.isEnabled()) {
-                return invokeDelegate("generateContent", model, content, config);
-            }
+            BaseCollector collector = registry.getCollector("gemini");
+            if (collector == null) return;
 
             String traceId = UUID.randomUUID().toString();
-            long startTime = System.nanoTime();
+            long startTimeNanos = System.nanoTime();
 
             // Build request context for the collector
             Map<String, Object> requestContext = new LinkedHashMap<>();
-            requestContext.put("model", model);
-            requestContext.put("content", content instanceof String ? content : content.toString());
-            requestContext.put("config", config);
+            requestContext.put("model", traceData.getOrDefault("model", "unknown"));
+            requestContext.put("requestJson", traceData.get("requestJson"));
 
-            try {
-                Object result = invokeDelegate("generateContent", model, content, config);
-                sendTrace(traceId, startTime, requestContext, result, null);
-                return result;
-            } catch (Exception e) {
-                sendTrace(traceId, startTime, requestContext, null, e);
-                throw e;
-            }
-        }
+            Map<String, Object> trace = collector.collectTrace(
+                traceId, startTimeNanos, requestContext, null, error);
+            if (trace != null) {
+                // Override duration with the pre-calculated value from the wrapper
+                Object durationMs = traceData.get("durationMs");
+                if (durationMs instanceof Number) {
+                    trace.put("duration_ms", ((Number) durationMs).doubleValue());
+                }
 
-        private Object invokeDelegate(String methodName, Object... args) throws Exception {
-            for (Method m : delegate.getClass().getMethods()) {
-                if (m.getName().equals(methodName) && m.getParameterCount() == args.length) {
-                    return m.invoke(delegate, args);
+                Transport transport = Transport.get();
+                if (transport != null) {
+                    transport.sendTrace(trace);
                 }
             }
-            throw new NoSuchMethodException(methodName);
-        }
-
-        private static void sendTrace(String traceId, long startTime, Object requestParams,
-                                       Object response, Exception error) {
-            try {
-                ProviderRegistry registry = ProviderRegistry.get();
-                if (registry == null) return;
-
-                BaseCollector collector = registry.getCollector("gemini");
-                if (collector == null) return;
-
-                Map<String, Object> trace = collector.collectTrace(traceId, startTime, requestParams, response, error);
-                if (trace != null) {
-                    Transport transport = Transport.get();
-                    if (transport != null) {
-                        transport.sendTrace(trace);
-                    }
-                }
-            } catch (Exception e) {
-                LoggerFactory.getLogger(TracedModels.class).debug("Error sending Gemini trace: {}", e.getMessage());
-            }
+        } catch (Exception e) {
+            logger.debug("Error sending Gemini trace: {}", e.getMessage());
         }
     }
 }

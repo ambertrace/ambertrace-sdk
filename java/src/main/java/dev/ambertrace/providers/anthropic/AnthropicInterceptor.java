@@ -69,16 +69,27 @@ public class AnthropicInterceptor implements BaseInterceptor<Object> {
 
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            if ("messages".equals(method.getName()) && (args == null || args.length == 0)) {
-                Object messages = method.invoke(delegate, args);
-                return wrapMessages(messages);
+            try {
+                if ("messages".equals(method.getName()) && (args == null || args.length == 0)) {
+                    Object messages = method.invoke(delegate, args);
+                    return wrapMessages(messages);
+                }
+                return method.invoke(delegate, args);
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                throw e.getCause();
             }
-            return method.invoke(delegate, args);
         }
     }
 
     private static Object wrapMessages(Object messages) {
-        Class<?> messagesInterface = findInterface(messages, "Messages");
+        Class<?> messagesInterface = findInterface(messages, "com.anthropic.services.blocking.MessageService");
+        if (messagesInterface == null) {
+            messagesInterface = findInterface(messages, "com.anthropic.services.async.MessageServiceAsync");
+        }
+        if (messagesInterface == null) {
+            // Fallback: search for any interface containing "Message"
+            messagesInterface = findInterface(messages, "Message");
+        }
         if (messagesInterface == null) {
             return messages;
         }
@@ -86,10 +97,14 @@ public class AnthropicInterceptor implements BaseInterceptor<Object> {
             messages.getClass().getClassLoader(),
             new Class<?>[]{ messagesInterface },
             (proxy, method, args) -> {
-                if ("create".equals(method.getName()) && args != null && args.length == 1) {
-                    return interceptCreate(messages, method, args);
+                try {
+                    if ("create".equals(method.getName()) && args != null && args.length == 1) {
+                        return interceptCreate(messages, method, args);
+                    }
+                    return method.invoke(messages, args);
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    throw e.getCause();
                 }
-                return method.invoke(messages, args);
             }
         );
     }
@@ -155,16 +170,15 @@ public class AnthropicInterceptor implements BaseInterceptor<Object> {
         }
     }
 
+    /**
+     * Find an interface on the object's class hierarchy whose fully-qualified name
+     * contains the given string. Prefer exact or package-qualified matches.
+     */
     private static Class<?> findInterface(Object obj, String nameContains) {
-        for (Class<?> iface : obj.getClass().getInterfaces()) {
-            if (iface.getName().contains(nameContains)) {
-                return iface;
-            }
-        }
-        Class<?> cls = obj.getClass().getSuperclass();
+        Class<?> cls = obj.getClass();
         while (cls != null) {
             for (Class<?> iface : cls.getInterfaces()) {
-                if (iface.getName().contains(nameContains)) {
+                if (iface.getName().equals(nameContains) || iface.getName().contains(nameContains)) {
                     return iface;
                 }
             }

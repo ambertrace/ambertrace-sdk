@@ -74,19 +74,26 @@ public class OpenAIInterceptor implements BaseInterceptor<Object> {
 
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            // Intercept chat() to return a traced Chat proxy
-            if ("chat".equals(method.getName()) && (args == null || args.length == 0)) {
-                Object chat = method.invoke(delegate, args);
-                return wrapChat(chat);
+            try {
+                // Intercept chat() to return a traced Chat proxy
+                if ("chat".equals(method.getName()) && (args == null || args.length == 0)) {
+                    Object chat = method.invoke(delegate, args);
+                    return wrapChat(chat);
+                }
+                return method.invoke(delegate, args);
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                throw e.getCause();
             }
-            return method.invoke(delegate, args);
         }
     }
 
     // --- Wrap Chat resource ---
 
     private static Object wrapChat(Object chat) {
-        Class<?> chatInterface = findInterface(chat, "Chat");
+        Class<?> chatInterface = findInterface(chat, "com.openai.services.blocking.ChatService");
+        if (chatInterface == null) {
+            chatInterface = findInterface(chat, "com.openai.services.async.ChatServiceAsync");
+        }
         if (chatInterface == null) {
             return chat;
         }
@@ -94,11 +101,15 @@ public class OpenAIInterceptor implements BaseInterceptor<Object> {
             chat.getClass().getClassLoader(),
             new Class<?>[]{ chatInterface },
             (proxy, method, args) -> {
-                if ("completions".equals(method.getName())) {
-                    Object completions = method.invoke(chat, args);
-                    return wrapCompletions(completions);
+                try {
+                    if ("completions".equals(method.getName())) {
+                        Object completions = method.invoke(chat, args);
+                        return wrapCompletions(completions);
+                    }
+                    return method.invoke(chat, args);
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    throw e.getCause();
                 }
-                return method.invoke(chat, args);
             }
         );
     }
@@ -106,7 +117,14 @@ public class OpenAIInterceptor implements BaseInterceptor<Object> {
     // --- Wrap Completions resource ---
 
     private static Object wrapCompletions(Object completions) {
-        Class<?> completionsInterface = findInterface(completions, "Completions");
+        Class<?> completionsInterface = findInterface(completions, "com.openai.services.blocking.ChatService$CompletionService");
+        if (completionsInterface == null) {
+            completionsInterface = findInterface(completions, "com.openai.services.async.ChatServiceAsync$CompletionServiceAsync");
+        }
+        if (completionsInterface == null) {
+            // Fallback: search for any interface containing "Completion"
+            completionsInterface = findInterface(completions, "Completion");
+        }
         if (completionsInterface == null) {
             return completions;
         }
@@ -114,10 +132,14 @@ public class OpenAIInterceptor implements BaseInterceptor<Object> {
             completions.getClass().getClassLoader(),
             new Class<?>[]{ completionsInterface },
             (proxy, method, args) -> {
-                if ("create".equals(method.getName()) && args != null && args.length == 1) {
-                    return interceptCreate(completions, method, args);
+                try {
+                    if ("create".equals(method.getName()) && args != null && args.length == 1) {
+                        return interceptCreate(completions, method, args);
+                    }
+                    return method.invoke(completions, args);
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    throw e.getCause();
                 }
-                return method.invoke(completions, args);
             }
         );
     }
@@ -189,17 +211,16 @@ public class OpenAIInterceptor implements BaseInterceptor<Object> {
 
     // --- Utility ---
 
+    /**
+     * Find an interface on the object's class hierarchy whose fully-qualified name
+     * contains the given string. Prefer exact or package-qualified matches.
+     */
     private static Class<?> findInterface(Object obj, String nameContains) {
-        for (Class<?> iface : obj.getClass().getInterfaces()) {
-            if (iface.getName().contains(nameContains)) {
-                return iface;
-            }
-        }
-        // Check superclass interfaces
-        Class<?> cls = obj.getClass().getSuperclass();
+        // Search the full class hierarchy
+        Class<?> cls = obj.getClass();
         while (cls != null) {
             for (Class<?> iface : cls.getInterfaces()) {
-                if (iface.getName().contains(nameContains)) {
+                if (iface.getName().equals(nameContains) || iface.getName().contains(nameContains)) {
                     return iface;
                 }
             }

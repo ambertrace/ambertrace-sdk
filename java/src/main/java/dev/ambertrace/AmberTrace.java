@@ -35,6 +35,9 @@ public final class AmberTrace {
 
     private static final Logger logger = LoggerFactory.getLogger(AmberTrace.class);
 
+    // Track the shutdown hook to prevent accumulation on repeated init() calls
+    private static volatile Thread shutdownHook;
+
     private AmberTrace() {}
 
     /**
@@ -48,9 +51,16 @@ public final class AmberTrace {
 
     /**
      * Initialize from environment variables only (AMBERTRACE_API_KEY, etc.).
+     *
+     * <p>If no API key is found in environment variables, logs a warning
+     * and disables tracing instead of throwing.
      */
     public static void init() {
-        init(Config.builder().build());
+        try {
+            init(Config.builder().build());
+        } catch (IllegalArgumentException e) {
+            logger.warn("AmberTrace API key not found: {}. Tracing will be disabled.", e.getMessage());
+        }
     }
 
     /**
@@ -91,14 +101,22 @@ public final class AmberTrace {
             // Store registry
             ProviderRegistry.set(registry);
 
-            // Register shutdown hook
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            // Remove previous shutdown hook if exists, then register new one
+            if (shutdownHook != null) {
+                try {
+                    Runtime.getRuntime().removeShutdownHook(shutdownHook);
+                } catch (IllegalStateException ignored) {
+                    // JVM is already shutting down
+                }
+            }
+            shutdownHook = new Thread(() -> {
                 try {
                     flush(5000);
                     Transport t = Transport.get();
                     if (t != null) t.stop();
                 } catch (Exception ignored) {}
-            }, "ambertrace-shutdown"));
+            }, "ambertrace-shutdown");
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
 
             logger.info("AmberTrace SDK initialized for providers: {}", registry.getRegisteredProviders());
 
@@ -291,24 +309,22 @@ public final class AmberTrace {
 
     private static String detectProvider(Object client) {
         String className = client.getClass().getName();
-        // Check interfaces too
-        for (Class<?> iface : client.getClass().getInterfaces()) {
-            String ifaceName = iface.getName();
-            if (ifaceName.contains("com.openai")) return "openai";
-            if (ifaceName.contains("com.anthropic")) return "anthropic";
-        }
-        if (className.contains("com.openai")) return "openai";
-        if (className.contains("com.anthropic")) return "anthropic";
-        if (className.contains("com.google.genai")) return "gemini";
 
-        // Check if it's a Proxy wrapping an OpenAI/Anthropic client
-        if (java.lang.reflect.Proxy.isProxyClass(client.getClass())) {
-            for (Class<?> iface : client.getClass().getInterfaces()) {
-                String name = iface.getName();
-                if (name.contains("openai")) return "openai";
-                if (name.contains("anthropic")) return "anthropic";
+        // Check interfaces (including on proxy classes)
+        Class<?> cls = client.getClass();
+        while (cls != null) {
+            for (Class<?> iface : cls.getInterfaces()) {
+                String ifaceName = iface.getName();
+                if (ifaceName.startsWith("com.openai.")) return "openai";
+                if (ifaceName.startsWith("com.anthropic.")) return "anthropic";
             }
+            cls = cls.getSuperclass();
         }
+
+        // Check class name directly
+        if (className.startsWith("com.openai.")) return "openai";
+        if (className.startsWith("com.anthropic.")) return "anthropic";
+        if (className.startsWith("com.google.genai.")) return "gemini";
 
         return null;
     }

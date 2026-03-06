@@ -20,11 +20,31 @@
         </license>
     </licenses>
 
+    <developers>
+        <developer>
+            <name>AmberTrace</name>
+            <email>dev@ambertrace.dev</email>
+            <organization>AmberTrace</organization>
+            <organizationUrl>https://ambertrace.dev</organizationUrl>
+        </developer>
+    </developers>
+
     <scm>
         <connection>scm:git:git://github.com/ambertrace/ambertrace-sdk.git</connection>
         <developerConnection>scm:git:ssh://github.com:ambertrace/ambertrace-sdk.git</developerConnection>
         <url>https://github.com/ambertrace/ambertrace-sdk/tree/main/java</url>
     </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>central</id>
+            <url>https://central.sonatype.com/repository/maven-central/</url>
+        </repository>
+        <snapshotRepository>
+            <id>central</id>
+            <url>https://central.sonatype.com/repository/maven-central/</url>
+        </snapshotRepository>
+    </distributionManagement>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

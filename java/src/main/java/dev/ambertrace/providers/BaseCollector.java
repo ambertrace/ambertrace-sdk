@@ -127,10 +127,14 @@ public abstract class BaseCollector {
                 UsageData usage = new UsageData(0, 0, 0);
                 if (rawUsage instanceof Map) {
                     Map<String, Object> um = (Map<String, Object>) rawUsage;
+                    Integer cached = um.containsKey("cached_tokens") ? toIntOrNull(um.get("cached_tokens")) : null;
+                    Integer reasoning = um.containsKey("reasoning_tokens") ? toIntOrNull(um.get("reasoning_tokens")) : null;
                     usage = new UsageData(
                         toInt(um.getOrDefault("prompt_tokens", 0)),
                         toInt(um.getOrDefault("completion_tokens", 0)),
-                        toInt(um.getOrDefault("total_tokens", 0))
+                        toInt(um.getOrDefault("total_tokens", 0)),
+                        cached,
+                        reasoning
                     );
                 }
 
@@ -185,6 +189,18 @@ public abstract class BaseCollector {
             return Integer.parseInt(String.valueOf(value));
         } catch (NumberFormatException e) {
             return 0;
+        }
+    }
+
+    private static Integer toIntOrNull(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 }
