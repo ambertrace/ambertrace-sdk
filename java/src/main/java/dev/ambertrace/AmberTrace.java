@@ -295,8 +295,8 @@ public final class AmberTrace {
         // Google Gemini
         if (isClassAvailable("com.google.genai.Client")) {
             try {
-                var interceptor = new dev.ambertrace.providers.gemini.GeminiInterceptor();
-                var collector = new dev.ambertrace.providers.gemini.GeminiCollector();
+                var interceptor = new dev.ambertrace.providers.google.GoogleInterceptor();
+                var collector = new dev.ambertrace.providers.google.GoogleCollector();
                 registry.registerProvider("gemini", interceptor, collector);
                 logger.debug("Registered Gemini provider");
             } catch (Exception e) {

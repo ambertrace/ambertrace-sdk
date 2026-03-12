@@ -144,6 +144,24 @@ AmberTrace.init();
 | `AmberTrace.shutdown()` | Full cleanup: flush + stop transport |
 | `AmberTrace.getVersion()` | Get SDK version |
 
+## Provider Compatibility
+
+| Provider | Library | Tested Version | Traced Method | Sync | Async |
+|----------|---------|---------------|---------------|------|-------|
+| OpenAI | [`com.openai:openai-java`](https://github.com/openai/openai-java) | 4.26.0 | `chat().completions().create()` | ✅ | ✅ |
+| Anthropic | [`com.anthropic:anthropic-java`](https://github.com/anthropics/anthropic-sdk-java) | 2.15.0 | `messages().create()` | ✅ | ✅ |
+| Google Gemini | [`com.google.genai:google-genai`](https://github.com/googleapis/java-genai) | 1.4.1 | `models.generateContent()` | ✅ | ✅ |
+
+### Captured Data
+
+Each trace includes:
+
+- **Request** — model, messages (role + content), parameters (temperature, top_p, max tokens)
+- **Response** — completion text, finish reason, response model
+- **Token usage** — prompt, completion, total, cached, and reasoning tokens
+- **Metadata** — trace ID, timestamp, duration, provider, environment, SDK version
+- **Errors** — exception type, message, HTTP status code (when available)
+
 ## How It Works
 
 Unlike Python and TypeScript SDKs which use monkey-patching, the Java SDK uses the **wrapper/decorator pattern**. `AmberTrace.wrap(client)` returns a traced proxy with the same API as the original client. The proxy intercepts API calls to record timing, request/response data, and sends traces to the backend.

@@ -42,6 +42,7 @@ public final class Transport {
 
     public Transport() {
         this.httpClient = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofMillis(
                 Config.get() != null ? Config.get().getTimeoutMs() : 5000
             ))

@@ -59,7 +59,12 @@ public class AnthropicCollector extends BaseCollector {
 
         try {
             Object model = invoke(requestParams, "model");
-            data.put("model", model != null ? model.toString() : "unknown");
+            if (model != null) {
+                Object asStr = invoke(model, "asString");
+                data.put("model", asStr != null ? asStr.toString() : model.toString());
+            } else {
+                data.put("model", "unknown");
+            }
 
             // Extract messages
             List<Map<String, Object>> messages = new ArrayList<>();
@@ -96,9 +101,14 @@ public class AnthropicCollector extends BaseCollector {
             data.put("id", safeInvoke(response, "id", "unknown"));
 
             Object model = invoke(response, "model");
-            data.put("model", model != null ? model.toString() : "unknown");
+            if (model != null) {
+                Object asStr = invoke(model, "asString");
+                data.put("model", asStr != null ? asStr.toString() : model.toString());
+            } else {
+                data.put("model", "unknown");
+            }
 
-            // Extract content blocks → choices
+            // Extract content blocks — choices
             List<Map<String, Object>> choices = new ArrayList<>();
             Object contentList = invoke(response, "content");
             if (contentList instanceof Iterable) {
@@ -135,7 +145,14 @@ public class AnthropicCollector extends BaseCollector {
 
                 Object stopReason = invoke(response, "stopReason");
                 if (stopReason instanceof Optional) {
-                    choice.put("finish_reason", ((Optional<?>) stopReason).map(Object::toString).orElse("unknown"));
+                    Optional<?> optStop = (Optional<?>) stopReason;
+                    if (optStop.isPresent()) {
+                        Object sr = optStop.get();
+                        Object asStr = invoke(sr, "asString");
+                        choice.put("finish_reason", asStr != null ? asStr.toString() : sr.toString());
+                    } else {
+                        choice.put("finish_reason", "unknown");
+                    }
                 } else {
                     choice.put("finish_reason", stopReason != null ? stopReason.toString() : "unknown");
                 }
@@ -152,6 +169,12 @@ public class AnthropicCollector extends BaseCollector {
                 usage.put("prompt_tokens", inputTokens);
                 usage.put("completion_tokens", outputTokens);
                 usage.put("total_tokens", inputTokens + outputTokens);
+
+                // Extract cached tokens from cacheReadInputTokens
+                Integer cachedTokens = invokeOptionalLong(usageObj, "cacheReadInputTokens");
+                if (cachedTokens != null) {
+                    usage.put("cached_tokens", cachedTokens);
+                }
             } else {
                 usage.put("prompt_tokens", 0);
                 usage.put("completion_tokens", 0);
@@ -192,24 +215,41 @@ public class AnthropicCollector extends BaseCollector {
     private Map<String, Object> extractMessage(Object msg) {
         Map<String, Object> result = new LinkedHashMap<>();
         try {
+            // MessageParam.role() returns Role (Enum) — use asString()
             Object role = invoke(msg, "role");
-            result.put("role", role != null ? role.toString().toLowerCase() : "unknown");
-
-            Object content = invoke(msg, "content");
-            if (content instanceof String) {
-                result.put("content", content);
-            } else if (content instanceof Iterable) {
-                // Content parts — concatenate text
-                StringBuilder sb = new StringBuilder();
-                for (Object part : (Iterable<?>) content) {
-                    Object text = invoke(part, "text");
-                    if (text != null) {
-                        sb.append(text.toString());
-                    }
-                }
-                result.put("content", sb.toString());
+            if (role != null) {
+                Object asStr = invoke(role, "asString");
+                result.put("role", asStr != null ? asStr.toString().toLowerCase() : role.toString().toLowerCase());
             } else {
-                result.put("content", content != null ? content.toString() : "");
+                result.put("role", "unknown");
+            }
+
+            // MessageParam.content() returns Content union: isString()/asString() or isBlockParams()/asBlockParams()
+            Object content = invoke(msg, "content");
+            if (content == null) {
+                result.put("content", "");
+            } else if (invokeBool(content, "isString")) {
+                Object text = invoke(content, "asString");
+                result.put("content", text != null ? text.toString() : "");
+            } else if (invokeBool(content, "isBlockParams")) {
+                Object blocks = invoke(content, "asBlockParams");
+                if (blocks instanceof Iterable) {
+                    StringBuilder sb = new StringBuilder();
+                    for (Object block : (Iterable<?>) blocks) {
+                        if (invokeBool(block, "isText")) {
+                            Object textBlock = invoke(block, "asText");
+                            if (textBlock != null) {
+                                Object text = invoke(textBlock, "text");
+                                if (text != null) sb.append(text.toString());
+                            }
+                        }
+                    }
+                    result.put("content", sb.toString());
+                } else {
+                    result.put("content", "");
+                }
+            } else {
+                result.put("content", "");
             }
         } catch (Exception e) {
             result.putIfAbsent("role", "unknown");
@@ -237,6 +277,15 @@ public class AnthropicCollector extends BaseCollector {
         }
     }
 
+    private static boolean invokeBool(Object obj, String methodName) {
+        try {
+            Object result = obj.getClass().getMethod(methodName).invoke(obj);
+            return Boolean.TRUE.equals(result);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private static Object safeInvoke(Object obj, String methodName, Object fallback) {
         Object result = invoke(obj, methodName);
         return result != null ? result : fallback;
@@ -250,6 +299,19 @@ public class AnthropicCollector extends BaseCollector {
             }
         } catch (Exception ignored) {}
         return fallback;
+    }
+
+    private static Integer invokeOptionalLong(Object obj, String methodName) {
+        try {
+            Object result = invoke(obj, methodName);
+            if (result instanceof Optional) {
+                Object val = ((Optional<?>) result).orElse(null);
+                if (val instanceof Number) {
+                    return ((Number) val).intValue();
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     private static String toSnakeCase(String camelCase) {

@@ -1,4 +1,4 @@
-package dev.ambertrace.providers.gemini;
+package dev.ambertrace.providers.google;
 
 import com.google.genai.AmberTraceApiClientWrapper;
 import dev.ambertrace.Config;
@@ -20,9 +20,9 @@ import java.util.*;
  * {@code ApiClient} with a tracing wrapper via {@link AmberTraceApiClientWrapper},
  * which lives in the {@code com.google.genai} package to access package-private types.
  */
-public class GeminiInterceptor implements BaseInterceptor<Object> {
+public class GoogleInterceptor implements BaseInterceptor<Object> {
 
-    private static final Logger logger = LoggerFactory.getLogger(GeminiInterceptor.class);
+    private static final Logger logger = LoggerFactory.getLogger(GoogleInterceptor.class);
 
     // Track wrapped clients using WeakHashMap to allow GC of unused clients
     private static final Map<Object, Boolean> wrappedClients =
@@ -105,8 +105,11 @@ public class GeminiInterceptor implements BaseInterceptor<Object> {
             requestContext.put("model", traceData.getOrDefault("model", "unknown"));
             requestContext.put("requestJson", traceData.get("requestJson"));
 
+            // Pass response JSON as the response object for the collector to parse
+            String responseJson = (String) traceData.get("responseJson");
+
             Map<String, Object> trace = collector.collectTrace(
-                traceId, startTimeNanos, requestContext, null, error);
+                traceId, startTimeNanos, requestContext, responseJson, error);
             if (trace != null) {
                 // Override duration with the pre-calculated value from the wrapper
                 Object durationMs = traceData.get("durationMs");

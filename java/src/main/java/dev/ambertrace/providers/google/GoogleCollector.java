@@ -1,4 +1,4 @@
-package dev.ambertrace.providers.gemini;
+package dev.ambertrace.providers.google;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,9 +15,9 @@ import java.util.*;
  * <p>Extracts data from Gemini API request/response data into the normalized trace format.
  * Works with raw JSON request data from the {@link TracingApiClient} HTTP-level interception.
  */
-public class GeminiCollector extends BaseCollector {
+public class GoogleCollector extends BaseCollector {
 
-    private static final Logger logger = LoggerFactory.getLogger(GeminiCollector.class);
+    private static final Logger logger = LoggerFactory.getLogger(GoogleCollector.class);
     private static final ObjectMapper mapper = new ObjectMapper();
 
     @Override
@@ -38,7 +38,10 @@ public class GeminiCollector extends BaseCollector {
             String timestamp = Instant.now().toString();
 
             Map<String, Object> requestData = buildRequestData(requestParams);
-            Map<String, Object> responseData = null; // Response data captured at HTTP level is raw; skip for now
+            Map<String, Object> responseData = null;
+            if (response instanceof String) {
+                responseData = buildResponseData((String) response);
+            }
             Map<String, Object> errorData = error != null ? buildErrorData(error) : null;
 
             return buildTrace(
@@ -129,6 +132,118 @@ public class GeminiCollector extends BaseCollector {
             logger.debug("Could not parse Gemini request JSON: {}", e.getMessage());
         }
         return messages;
+    }
+
+    /**
+     * Build response data from the raw Gemini response JSON.
+     *
+     * <p>Extracts candidates (choices), usage metadata (token counts), and model info
+     * from the Gemini API JSON response format.
+     */
+    private Map<String, Object> buildResponseData(String responseJson) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        try {
+            JsonNode root = mapper.readTree(responseJson);
+
+            // Response ID
+            data.put("id", root.has("responseId") ? root.get("responseId").asText() : "unknown");
+
+            // Model version
+            data.put("model", root.has("modelVersion") ? root.get("modelVersion").asText() : "unknown");
+
+            // Extract candidates — choices
+            List<Map<String, Object>> choices = new ArrayList<>();
+            JsonNode candidates = root.get("candidates");
+            if (candidates != null && candidates.isArray()) {
+                for (int i = 0; i < candidates.size(); i++) {
+                    JsonNode candidate = candidates.get(i);
+                    Map<String, Object> choice = new LinkedHashMap<>();
+                    choice.put("index", i);
+
+                    // Extract text from candidate.content.parts
+                    String text = extractCandidateText(candidate);
+                    Map<String, Object> message = new LinkedHashMap<>();
+                    message.put("role", "assistant");
+                    message.put("content", text);
+                    choice.put("message", message);
+
+                    // Finish reason
+                    String finishReason = candidate.has("finishReason")
+                        ? normalizeFinishReason(candidate.get("finishReason").asText())
+                        : "stop";
+                    choice.put("finish_reason", finishReason);
+
+                    choices.add(choice);
+                }
+            }
+            data.put("choices", choices);
+
+            // Extract usage metadata
+            Map<String, Object> usage = new LinkedHashMap<>();
+            JsonNode usageMeta = root.get("usageMetadata");
+            if (usageMeta != null) {
+                int promptTokens = usageMeta.has("promptTokenCount")
+                    ? usageMeta.get("promptTokenCount").asInt(0) : 0;
+                int completionTokens = usageMeta.has("candidatesTokenCount")
+                    ? usageMeta.get("candidatesTokenCount").asInt(0) : 0;
+                int totalTokens = usageMeta.has("totalTokenCount")
+                    ? usageMeta.get("totalTokenCount").asInt(0) : 0;
+                usage.put("prompt_tokens", promptTokens);
+                usage.put("completion_tokens", completionTokens);
+                usage.put("total_tokens", totalTokens);
+
+                // Cached tokens
+                if (usageMeta.has("cachedContentTokenCount")) {
+                    usage.put("cached_tokens", usageMeta.get("cachedContentTokenCount").asInt(0));
+                }
+            } else {
+                usage.put("prompt_tokens", 0);
+                usage.put("completion_tokens", 0);
+                usage.put("total_tokens", 0);
+            }
+            data.put("usage", usage);
+
+        } catch (Exception e) {
+            logger.debug("Could not parse Gemini response JSON: {}", e.getMessage());
+            data.putIfAbsent("id", "unknown");
+            data.putIfAbsent("model", "unknown");
+            data.putIfAbsent("choices", Collections.emptyList());
+            data.putIfAbsent("usage", Map.of("prompt_tokens", 0, "completion_tokens", 0, "total_tokens", 0));
+        }
+        return data;
+    }
+
+    /**
+     * Extract text content from a candidate's content.parts array.
+     */
+    private String extractCandidateText(JsonNode candidate) {
+        JsonNode content = candidate.get("content");
+        if (content == null) return "";
+
+        JsonNode parts = content.get("parts");
+        if (parts == null || !parts.isArray()) return "";
+
+        StringBuilder text = new StringBuilder();
+        for (JsonNode part : parts) {
+            if (part.has("text")) {
+                if (text.length() > 0) text.append("\n");
+                text.append(part.get("text").asText());
+            }
+        }
+        return text.toString();
+    }
+
+    private static final Map<String, String> FINISH_REASON_MAP = Map.of(
+        "STOP", "stop",
+        "MAX_TOKENS", "length",
+        "SAFETY", "content_filter",
+        "RECITATION", "content_filter",
+        "OTHER", "stop",
+        "FINISH_REASON_UNSPECIFIED", "stop"
+    );
+
+    private String normalizeFinishReason(String raw) {
+        return FINISH_REASON_MAP.getOrDefault(raw, "stop");
     }
 
     private Map<String, Object> buildErrorData(Exception error) {

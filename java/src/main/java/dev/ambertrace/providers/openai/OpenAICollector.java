@@ -59,8 +59,14 @@ public class OpenAICollector extends BaseCollector {
 
         try {
             // com.openai.models.chat.completions.ChatCompletionCreateParams
+            // model() returns ChatModel which implements Enum — use asString()
             Object model = invoke(requestParams, "model");
-            data.put("model", model != null ? model.toString() : "unknown");
+            if (model != null) {
+                Object asStr = invoke(model, "asString");
+                data.put("model", asStr != null ? asStr.toString() : model.toString());
+            } else {
+                data.put("model", "unknown");
+            }
 
             // Extract messages
             List<Map<String, Object>> messages = new ArrayList<>();
@@ -107,15 +113,21 @@ public class OpenAICollector extends BaseCollector {
                     Map<String, Object> choiceMap = new LinkedHashMap<>();
                     choiceMap.put("index", idx++);
 
+                    // FinishReason implements Enum — use asString() for clean value
                     Object finishReason = invoke(choice, "finishReason");
-                    choiceMap.put("finish_reason", finishReason != null ? finishReason.toString() : "unknown");
+                    String frString = "unknown";
+                    if (finishReason != null) {
+                        Object asStr = invoke(finishReason, "asString");
+                        frString = asStr != null ? asStr.toString() : finishReason.toString();
+                    }
+                    choiceMap.put("finish_reason", frString);
 
                     Object message = invoke(choice, "message");
                     Map<String, Object> msgMap = new LinkedHashMap<>();
                     msgMap.put("role", "assistant");
                     if (message != null) {
                         Object content = invoke(message, "content");
-                        // content() returns Optional<String>
+                        // ChatCompletionMessage.content() returns Optional<String>
                         if (content instanceof Optional) {
                             Object val = ((Optional<?>) content).orElse(null);
                             msgMap.put("content", val != null ? val.toString() : "");
@@ -142,9 +154,21 @@ public class OpenAICollector extends BaseCollector {
                     usage.put("prompt_tokens", safeInvokeLong(u, "promptTokens", 0));
                     usage.put("completion_tokens", safeInvokeLong(u, "completionTokens", 0));
                     usage.put("total_tokens", safeInvokeLong(u, "totalTokens", 0));
+
+                    // Extract cached tokens from promptTokensDetails
+                    Object promptDetails = invokeOptionalGet(u, "promptTokensDetails");
+                    if (promptDetails != null) {
+                        usage.put("cached_tokens", invokeOptionalLong(promptDetails, "cachedTokens"));
+                    }
+
+                    // Extract reasoning tokens from completionTokensDetails
+                    Object completionDetails = invokeOptionalGet(u, "completionTokensDetails");
+                    if (completionDetails != null) {
+                        usage.put("reasoning_tokens", invokeOptionalLong(completionDetails, "reasoningTokens"));
+                    }
                 }
             }
-            if (usage.isEmpty()) {
+            if (!usage.containsKey("prompt_tokens")) {
                 usage.put("prompt_tokens", 0);
                 usage.put("completion_tokens", 0);
                 usage.put("total_tokens", 0);
@@ -186,27 +210,100 @@ public class OpenAICollector extends BaseCollector {
     private Map<String, Object> extractMessage(Object msg) {
         Map<String, Object> result = new LinkedHashMap<>();
         try {
-            // ChatCompletionMessageParam is a sealed interface with variants
-            // Try to get role and content via reflection
-            Object role = safeInvoke(msg, "role", "unknown");
-            result.put("role", role.toString().toLowerCase());
-
-            Object content = invoke(msg, "content");
-            if (content instanceof Optional) {
-                Object optVal = ((Optional<?>) content).orElse(null);
-                content = optVal != null ? optVal : "";
-            }
-            if (content instanceof String) {
-                result.put("content", content);
+            // ChatCompletionMessageParam is a discriminated union — no role()/content() methods.
+            // Use isXxx()/asXxx() to determine the variant and extract data.
+            if (invokeBool(msg, "isUser")) {
+                Object variant = invoke(msg, "asUser");
+                result.put("role", "user");
+                result.put("content", extractContentUnion(variant));
+            } else if (invokeBool(msg, "isSystem")) {
+                Object variant = invoke(msg, "asSystem");
+                result.put("role", "system");
+                result.put("content", extractContentUnion(variant));
+            } else if (invokeBool(msg, "isAssistant")) {
+                Object variant = invoke(msg, "asAssistant");
+                result.put("role", "assistant");
+                result.put("content", extractOptionalContentUnion(variant));
+            } else if (invokeBool(msg, "isDeveloper")) {
+                Object variant = invoke(msg, "asDeveloper");
+                result.put("role", "developer");
+                result.put("content", extractContentUnion(variant));
+            } else if (invokeBool(msg, "isTool")) {
+                Object variant = invoke(msg, "asTool");
+                result.put("role", "tool");
+                result.put("content", extractContentUnion(variant));
+            } else if (invokeBool(msg, "isFunction")) {
+                Object variant = invoke(msg, "asFunction");
+                result.put("role", "function");
+                // FunctionMessageParam.content() returns Optional<String>
+                result.put("content", extractOptionalString(variant, "content"));
             } else {
-                // Could be a list of content parts — stringify
-                result.put("content", content != null ? content.toString() : "");
+                result.put("role", "unknown");
+                result.put("content", "");
             }
         } catch (Exception e) {
             result.putIfAbsent("role", "unknown");
             result.putIfAbsent("content", "");
         }
         return result;
+    }
+
+    /**
+     * Extract content from a variant whose content() returns a Content union type
+     * (User, System, Developer, Tool messages). The Content type has isText()/asText().
+     */
+    private String extractContentUnion(Object variant) {
+        if (variant == null) return "";
+        try {
+            Object content = invoke(variant, "content");
+            if (content == null) return "";
+            if (invokeBool(content, "isText")) {
+                Object text = invoke(content, "asText");
+                return text != null ? text.toString() : "";
+            }
+            // Fallback for array of content parts — stringify
+            return content.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /**
+     * Extract content from a variant whose content() returns Optional&lt;Content&gt;
+     * (Assistant messages). The Content type has isText()/asText().
+     */
+    private String extractOptionalContentUnion(Object variant) {
+        if (variant == null) return "";
+        try {
+            Object content = invoke(variant, "content");
+            if (content instanceof Optional) {
+                Optional<?> opt = (Optional<?>) content;
+                if (!opt.isPresent()) return "";
+                Object inner = opt.get();
+                if (invokeBool(inner, "isText")) {
+                    Object text = invoke(inner, "asText");
+                    return text != null ? text.toString() : "";
+                }
+                return inner.toString();
+            }
+            return content != null ? content.toString() : "";
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Extract a value from an Optional-returning method as a String. */
+    private String extractOptionalString(Object obj, String methodName) {
+        if (obj == null) return "";
+        try {
+            Object value = invoke(obj, methodName);
+            if (value instanceof Optional) {
+                return ((Optional<?>) value).map(Object::toString).orElse("");
+            }
+            return value != null ? value.toString() : "";
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private void extractOptional(Object obj, String methodName, Map<String, Object> target) {
@@ -231,6 +328,15 @@ public class OpenAICollector extends BaseCollector {
         }
     }
 
+    private static boolean invokeBool(Object obj, String methodName) {
+        try {
+            Object result = obj.getClass().getMethod(methodName).invoke(obj);
+            return Boolean.TRUE.equals(result);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private static Object safeInvoke(Object obj, String methodName, Object fallback) {
         Object result = invoke(obj, methodName);
         return result != null ? result : fallback;
@@ -244,6 +350,31 @@ public class OpenAICollector extends BaseCollector {
             }
         } catch (Exception ignored) {}
         return fallback;
+    }
+
+    /** Invoke a method that returns Optional, and return the inner value or null. */
+    private static Object invokeOptionalGet(Object obj, String methodName) {
+        try {
+            Object result = invoke(obj, methodName);
+            if (result instanceof Optional) {
+                return ((Optional<?>) result).orElse(null);
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    /** Invoke an Optional<Long>-returning method, return Integer or null. */
+    private static Integer invokeOptionalLong(Object obj, String methodName) {
+        try {
+            Object result = invoke(obj, methodName);
+            if (result instanceof Optional) {
+                Object val = ((Optional<?>) result).orElse(null);
+                if (val instanceof Number) {
+                    return ((Number) val).intValue();
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     private static String toSnakeCase(String camelCase) {
