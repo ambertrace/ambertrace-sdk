@@ -131,6 +131,8 @@ class Trace:
     # Metadata
     sdk_version: str = ""
     environment: Optional[str] = None
+    service_name: Optional[str] = None
+    trace_session_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization.
@@ -170,6 +172,9 @@ class Trace:
             "total_tokens": total_tokens,
             "status": status,
             "environment": self.environment,
+            "service_name": self.service_name,
+            "trace_session_id": self.trace_session_id,
+            "sdk_version": self.sdk_version,
         }
 
         return result

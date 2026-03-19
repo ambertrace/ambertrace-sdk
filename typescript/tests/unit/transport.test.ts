@@ -25,7 +25,7 @@ describe('Transport', () => {
       messages: [{ role: 'user', content: 'Hello' }],
       parameters: {},
     },
-    sdk_version: 'ambertrace-node/0.1.0',
+    sdk_version: 'typescript/0.1.0',
   });
 
   beforeEach(() => {

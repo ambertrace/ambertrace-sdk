@@ -37,6 +37,7 @@ __all__ = [
     "is_enabled",
     "flush",
     "flush_async",
+    "new_session",
 ]
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ def init(
     debug: Optional[bool] = None,
     timeout: Optional[float] = None,
     enabled: Optional[bool] = None,
+    service_name: Optional[str] = None,
 ) -> None:
     """Initialize AmberTrace SDK.
 
@@ -67,6 +69,7 @@ def init(
         debug: Enable debug logging (default: False)
         timeout: Network timeout in seconds (default: 5.0)
         enabled: Enable/disable tracing (default: True)
+        service_name: Name of the client app sending traces (e.g., "my-chatbot")
 
     Raises:
         ValueError: If no API key is provided
@@ -85,6 +88,7 @@ def init(
             debug=debug,
             timeout=timeout,
             enabled=enabled,
+            service_name=service_name,
         )
         set_config(config)
 
@@ -330,6 +334,30 @@ async def flush_async(timeout: float = 5.0) -> None:
 
     except Exception as e:
         logger.error(f"Failed to flush traces async: {e}", exc_info=True)
+
+
+def new_session() -> Optional[str]:
+    """Start a new trace session by rotating the trace_session_id.
+
+    Useful for long-running apps (e.g., servers) that want to group
+    traces into logical runs without restarting.
+
+    Returns:
+        The new trace_session_id, or None if not initialized.
+
+    Example:
+        >>> ambertrace.new_session()
+        '20260318-bold-fox-4291'
+    """
+    try:
+        config = get_config()
+        if config is None:
+            logger.warning("AmberTrace not initialized, call init() first")
+            return None
+        return config.new_session()
+    except Exception as e:
+        logger.error(f"Failed to create new session: {e}", exc_info=True)
+        return None
 
 
 # Export version

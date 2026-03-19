@@ -458,7 +458,7 @@ describe('GeminiCollector', () => {
         sampleResponse
       );
 
-      expect(trace?.sdk_version).toMatch(/^ambertrace-node\//);
+      expect(trace?.sdk_version).toMatch(/^typescript\//);
     });
 
     it('should include timestamp in ISO format', () => {

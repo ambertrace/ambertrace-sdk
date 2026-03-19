@@ -21,6 +21,8 @@ public final class Trace {
     private final ErrorData error;
     private final String sdkVersion;
     private final String environment;
+    private final String serviceName;
+    private final String traceSessionId;
 
     private Trace(Builder builder) {
         this.traceId = builder.traceId;
@@ -33,6 +35,8 @@ public final class Trace {
         this.error = builder.error;
         this.sdkVersion = builder.sdkVersion;
         this.environment = builder.environment;
+        this.serviceName = builder.serviceName;
+        this.traceSessionId = builder.traceSessionId;
     }
 
     public String getTraceId() { return traceId; }
@@ -45,6 +49,8 @@ public final class Trace {
     public ErrorData getError() { return error; }
     public String getSdkVersion() { return sdkVersion; }
     public String getEnvironment() { return environment; }
+    public String getServiceName() { return serviceName; }
+    public String getTraceSessionId() { return traceSessionId; }
 
     /**
      * Serialize to the flattened format matching backend {@code TraceCreate} schema.
@@ -85,6 +91,9 @@ public final class Trace {
 
         map.put("status", error != null ? "error" : "success");
         map.put("environment", environment);
+        map.put("service_name", serviceName);
+        map.put("trace_session_id", traceSessionId);
+        map.put("sdk_version", sdkVersion);
 
         return map;
     }
@@ -104,6 +113,8 @@ public final class Trace {
         private ErrorData error;
         private String sdkVersion;
         private String environment;
+        private String serviceName;
+        private String traceSessionId;
 
         private Builder() {}
 
@@ -117,6 +128,8 @@ public final class Trace {
         public Builder error(ErrorData error) { this.error = error; return this; }
         public Builder sdkVersion(String sdkVersion) { this.sdkVersion = sdkVersion; return this; }
         public Builder environment(String environment) { this.environment = environment; return this; }
+        public Builder serviceName(String serviceName) { this.serviceName = serviceName; return this; }
+        public Builder traceSessionId(String traceSessionId) { this.traceSessionId = traceSessionId; return this; }
 
         public Trace build() {
             return new Trace(this);

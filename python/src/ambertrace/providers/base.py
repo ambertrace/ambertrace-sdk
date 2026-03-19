@@ -225,6 +225,12 @@ class BaseCollector(ABC):
                     code=error_data.get("code"),
                 )
 
+            # Get service_name and trace_session_id from config
+            from ambertrace.config import get_config as _get_config
+            _cfg = _get_config()
+            service_name = _cfg.service_name if _cfg else None
+            trace_session_id = _cfg.trace_session_id if _cfg else None
+
             # Build trace dataclass
             trace = Trace(
                 trace_id=trace_id,
@@ -235,8 +241,10 @@ class BaseCollector(ABC):
                 request=request,
                 response=response,
                 error=error,
-                sdk_version=f"ambertrace-python/{__version__}",
+                sdk_version=f"python/{__version__}",
                 environment=environment,
+                service_name=service_name,
+                trace_session_id=trace_session_id,
             )
 
             # Serialize to backend format

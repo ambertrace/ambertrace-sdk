@@ -22,6 +22,7 @@ class Config:
         debug: Optional[bool] = None,
         timeout: Optional[float] = None,
         enabled: Optional[bool] = None,
+        service_name: Optional[str] = None,
     ):
         """Initialize configuration.
 
@@ -32,6 +33,7 @@ class Config:
             debug: Enable debug logging (default: False)
             timeout: Network timeout in seconds (default: 5.0)
             enabled: Enable/disable tracing (default: True)
+            service_name: Name of the client app sending traces (e.g., "my-chatbot")
 
         Raises:
             ValueError: If no API key is provided via parameter or environment variable
@@ -78,6 +80,13 @@ class Config:
             # Default to enabled unless explicitly disabled
             self.enabled = enabled_env not in ("false", "0", "no")
 
+        # Service name (optional)
+        self.service_name = service_name or os.getenv("AMBERTRACE_SERVICE_NAME")
+
+        # Trace session ID â auto-generated on init, can be rotated via new_session()
+        from ambertrace.session import generate_session_id
+        self.trace_session_id = generate_session_id()
+
         # Configure logging based on debug mode
         self._configure_logging()
 
@@ -105,13 +114,27 @@ class Config:
         """Get the full traces endpoint URL."""
         return f"{self.base_url}/api/traces/ingest"
 
+    def new_session(self) -> str:
+        """Rotate the trace session ID.
+
+        Useful for long-running apps that want to group traces into logical runs.
+
+        Returns:
+            The new trace_session_id value.
+        """
+        from ambertrace.session import generate_session_id
+        self.trace_session_id = generate_session_id()
+        return self.trace_session_id
+
     def __repr__(self) -> str:
         """String representation (masks API key)."""
         masked_key = f"{self.api_key[:8]}..." if len(self.api_key) > 8 else "***"
         return (
             f"Config(api_key={masked_key}, base_url={self.base_url}, "
             f"environment={self.environment}, debug={self.debug}, "
-            f"timeout={self.timeout}, enabled={self.enabled})"
+            f"timeout={self.timeout}, enabled={self.enabled}, "
+            f"service_name={self.service_name}, "
+            f"trace_session_id={self.trace_session_id})"
         )
 
 

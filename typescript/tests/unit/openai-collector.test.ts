@@ -152,7 +152,7 @@ describe('OpenAICollector', () => {
     it('should include SDK version in trace', () => {
       const trace = collector.collectTrace('trace-123', Date.now(), sampleRequest, sampleResponse);
 
-      expect(trace?.sdk_version).toMatch(/^ambertrace-node\//);
+      expect(trace?.sdk_version).toMatch(/^typescript\//);
     });
 
     it('should include timestamp in ISO format', () => {

@@ -256,6 +256,22 @@ export async function shutdown(timeoutMs: number = 5000): Promise<void> {
 }
 
 /**
+ * Start a new trace session by rotating the trace_session_id.
+ *
+ * Useful for long-running apps that want to group traces into logical runs.
+ *
+ * @returns The new trace_session_id, or undefined if not initialized.
+ */
+export function newSession(): string | undefined {
+  const config = getConfig();
+  if (!config) {
+    console.warn('[AmberTrace] SDK not initialized, call init() first');
+    return undefined;
+  }
+  return config.newSession();
+}
+
+/**
  * Get SDK version.
  */
 export function getVersion(): string {
@@ -270,6 +286,7 @@ export default {
   isEnabled,
   flush,
   shutdown,
+  newSession,
   getVersion,
   VERSION,
 };

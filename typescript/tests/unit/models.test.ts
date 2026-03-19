@@ -33,7 +33,7 @@ describe('serializeTrace', () => {
         total_tokens: 15,
       },
     },
-    sdk_version: 'ambertrace-node/0.1.0',
+    sdk_version: 'typescript/0.1.0',
     environment: 'test',
   });
 
@@ -48,7 +48,7 @@ describe('serializeTrace', () => {
     expect(serialized.duration_ms).toBe(150.5);
     expect(serialized.request).toEqual(trace.request);
     expect(serialized.response).toEqual(trace.response);
-    expect(serialized.sdk_version).toBe('ambertrace-node/0.1.0');
+    expect(serialized.sdk_version).toBe('typescript/0.1.0');
     expect(serialized.environment).toBe('test');
   });
 

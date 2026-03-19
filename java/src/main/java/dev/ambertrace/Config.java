@@ -28,6 +28,8 @@ public final class Config {
     private final boolean debug;
     private final long timeoutMs;
     private final boolean enabled;
+    private final String serviceName;
+    private volatile String traceSessionId;
 
     // Global singleton
     private static volatile Config instance;
@@ -39,6 +41,8 @@ public final class Config {
         this.debug = resolveBoolean(builder.debug, "AMBERTRACE_DEBUG", false);
         this.timeoutMs = builder.timeoutMs != null ? builder.timeoutMs : DEFAULT_TIMEOUT_MS;
         this.enabled = resolveBoolean(builder.enabled, "AMBERTRACE_ENABLED", true);
+        this.serviceName = resolve(builder.serviceName, "AMBERTRACE_SERVICE_NAME", null);
+        this.traceSessionId = SessionId.generate();
 
         if (this.apiKey == null || this.apiKey.isEmpty()) {
             throw new IllegalArgumentException(
@@ -54,6 +58,14 @@ public final class Config {
     public boolean isDebug() { return debug; }
     public long getTimeoutMs() { return timeoutMs; }
     public boolean isEnabled() { return enabled; }
+    public String getServiceName() { return serviceName; }
+    public String getTraceSessionId() { return traceSessionId; }
+
+    /** Rotate the trace session ID. Useful for long-running apps. */
+    public String newSession() {
+        this.traceSessionId = SessionId.generate();
+        return this.traceSessionId;
+    }
 
     public String getTracesEndpoint() {
         return baseUrl + "/api/traces/ingest";
@@ -90,6 +102,7 @@ public final class Config {
         private Boolean debug;
         private Long timeoutMs;
         private Boolean enabled;
+        private String serviceName;
 
         private Builder() {}
 
@@ -99,6 +112,7 @@ public final class Config {
         public Builder debug(boolean debug) { this.debug = debug; return this; }
         public Builder timeoutMs(long timeoutMs) { this.timeoutMs = timeoutMs; return this; }
         public Builder enabled(boolean enabled) { this.enabled = enabled; return this; }
+        public Builder serviceName(String serviceName) { this.serviceName = serviceName; return this; }
 
         public Config build() {
             return new Config(this);

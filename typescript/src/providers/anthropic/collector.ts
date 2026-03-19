@@ -64,8 +64,10 @@ export class AnthropicCollector implements BaseCollector {
         request: requestData,
         response: responseData,
         error: errorData,
-        sdk_version: `ambertrace-node/${VERSION}`,
+        sdk_version: `typescript/${VERSION}`,
         environment,
+        service_name: config?.serviceName,
+        trace_session_id: config?.traceSessionId,
       };
 
       if (config?.debug) {

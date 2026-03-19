@@ -76,6 +76,8 @@ export interface Trace {
   error?: ErrorData;
   sdk_version: string;
   environment?: string;
+  service_name?: string;
+  trace_session_id?: string;
 }
 
 /**
@@ -96,5 +98,7 @@ export function serializeTrace(trace: Trace): Record<string, unknown> {
     error: trace.error ?? null,
     sdk_version: trace.sdk_version,
     environment: trace.environment ?? null,
+    service_name: trace.service_name ?? null,
+    trace_session_id: trace.trace_session_id ?? null,
   };
 }

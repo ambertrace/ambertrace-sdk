@@ -169,8 +169,10 @@ public abstract class BaseCollector {
                 .request(request)
                 .response(response)
                 .error(error)
-                .sdkVersion(Version.SDK_IDENTIFIER)
+                .sdkVersion("java/" + Version.VERSION)
                 .environment(environment)
+                .serviceName(config != null ? config.getServiceName() : null)
+                .traceSessionId(config != null ? config.getTraceSessionId() : null)
                 .build();
 
             return trace.toMap();

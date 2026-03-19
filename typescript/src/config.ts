@@ -47,7 +47,15 @@ export interface ConfigOptions {
    * Default: true
    */
   enabled?: boolean;
+
+  /**
+   * Name of the client app sending traces (e.g., "my-chatbot", "data-pipeline-v2").
+   * Helps group traces by application.
+   */
+  serviceName?: string;
 }
+
+import { generateSessionId } from './session';
 
 /**
  * Validated and normalized configuration.
@@ -59,6 +67,8 @@ export class Config {
   readonly debug: boolean;
   readonly timeout: number;
   readonly enabled: boolean;
+  readonly serviceName: string | undefined;
+  traceSessionId: string;
 
   constructor(options: ConfigOptions = {}) {
     // Load API key from parameter or environment variable
@@ -88,6 +98,12 @@ export class Config {
     // Load enabled flag with default
     const enabledEnv = process.env.AMBERTRACE_ENABLED;
     this.enabled = options.enabled ?? (enabledEnv ? enabledEnv.toLowerCase() === 'true' : true);
+
+    // Load service name (optional)
+    this.serviceName = options.serviceName ?? process.env.AMBERTRACE_SERVICE_NAME;
+
+    // Auto-generate trace session ID
+    this.traceSessionId = generateSessionId();
   }
 
   /**
@@ -102,6 +118,16 @@ export class Config {
    */
   getAuthHeader(): string {
     return `Bearer ${this.apiKey}`;
+  }
+
+  /**
+   * Rotate the trace session ID.
+   *
+   * @returns The new trace session ID
+   */
+  newSession(): string {
+    this.traceSessionId = generateSessionId();
+    return this.traceSessionId;
   }
 }
 

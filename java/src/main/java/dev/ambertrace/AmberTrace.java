@@ -243,6 +243,23 @@ public final class AmberTrace {
         return config != null && config.isEnabled();
     }
 
+    /**
+     * Start a new trace session by rotating the trace_session_id.
+     *
+     * <p>Useful for long-running apps (servers) that want to group traces
+     * into logical runs without restarting.
+     *
+     * @return the new trace_session_id, or null if not initialized
+     */
+    public static String newSession() {
+        Config config = Config.get();
+        if (config == null) {
+            logger.warn("AmberTrace not initialized, call init() first");
+            return null;
+        }
+        return config.newSession();
+    }
+
     /** Shut down the SDK: flush pending traces, stop transport, clear state. */
     public static void shutdown() {
         try {
